@@ -18,7 +18,7 @@ picori is a small frontend framework that allows you to define reactive componen
       <p-html :="boundHTML"></p-html>
     </template>
 
-    <script src="https://esm.sh/picori"></script>
+    <script type="module" src="https://esm.sh/picori"></script>
   </head>
   <body>
     <!-- You can use the component anywhere in your body now! -->

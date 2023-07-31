@@ -95,7 +95,9 @@ async function runSetupScript(script, props = {}) {
           "'].currentProps;" +
           script +
           "/*" +
-          randomShit +
+          Math.random() +
+          Math.random() +
+          Math.random() +
           "*/"
       )
   );
