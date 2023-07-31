@@ -2,7 +2,7 @@
   "name": "picori",
   "author": "toonlink",
   "private": false,
-  "version": "0.0.1",
+  "version": "1.0.1",
   "main": "./src/picori.js",
   "type": "module",
   "dependencies": {
