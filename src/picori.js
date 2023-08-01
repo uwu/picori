@@ -290,7 +290,7 @@ for (const comp of components) {
 
       if (this.shadowRoot) return;
       this.attachShadow({ mode: "open" }).appendChild(this.template);
-      this.shadowRoot.adoptedStyleSheets = document.styleSheets;
+      this.shadowRoot.adoptedStyleSheets = document.adoptedStyleSheets;
     }
 
     async setup() {
