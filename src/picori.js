@@ -313,12 +313,10 @@ for (const comp of components) {
   picoElements.push(name);
 }
 
-(async () => {
-  await processNodes([
-    ...document.querySelectorAll(
-      picoElements
-        .map((t) => `${t}:not(${picoElements.map((p) => `${p} ${t}`).join()})`)
-        .join()
-    ),
-  ]);
-})();
+await processNodes([
+  ...document.querySelectorAll(
+    picoElements
+      .map((t) => `${t}:not(${picoElements.map((p) => `${p} ${t}`).join()})`)
+      .join()
+  ),
+]);
