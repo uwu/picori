@@ -1,0 +1,37 @@
+<head>
+    <template name="child-comp">
+        <h1>Hi!</h1>
+    </template>
+
+    <template name="parent-comp">
+        <style>
+            h1::after {
+                content: " (scoped css applied)";
+            }
+        </style>
+
+        static: <slot></slot>
+
+        <p-if :="true">
+            inside if: <slot name="2"></slot>
+        </p-if>
+    </template>
+
+    <script type="module" src="./dist.js"></script>
+</head>
+
+<body>
+    <parent-comp>
+        <h1>Hi!</h1>
+        <h1 slot="2">Hi!</h1>
+    </parent-comp>
+
+    <h1>This one is outside of the component</h1>
+</body>
+
+<!--
+<style>
+    h1::after {
+        content: " (global css applied)";
+    }
+</style>-->

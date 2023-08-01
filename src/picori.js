@@ -14,7 +14,7 @@ const primitives = {
       Vue:
       const count = ref(0);
       count.value = count.value + 1;
-      
+
       SolidJS:
       const [count, setCount] = ref(0);
       setCount(count() + 1);
@@ -124,13 +124,35 @@ function replacePropertyReactively(node, prop, exports) {
   );
 }
 
+const cloneWithShadowRoots = (node) => {
+  let i = 0;
+  const newEl = node.cloneNode(true);
+  // TODO implement this!!! -- sink
+}
+
 const pTags = {
   "P-IF": async (node, exports) => {
     const conditionalCode = node.getAttribute(":");
 
-    for (const slot of node.getElementsByTagName("slot"))
-      slot.replaceWith(...slot.assignedNodes());
+    debugger;
 
+    let i = 0;
+    for (const slot of node.getElementsByTagName("slot")) {
+      const nodes = slot.assignedNodes();
+      if (!nodes.length) continue;
+
+      const root = document.createElement("div");
+      root.style.display = "contents";
+      root.id = `psroot-${i++}`;
+      root.attachShadow({mode: "open"});
+
+      const sourceRoot = nodes[0].getRootNode();
+      root.shadowRoot.adoptedStyleSheets = [...sourceRoot.styleSheets, ...sourceRoot.adoptedStyleSheets];
+      root.shadowRoot.append(...nodes);
+      slot.replaceWith(root);
+    }
+
+    // TODO: cloneNode nukes the shadow roots here -- sink
     const template = node.cloneNode(true);
     node.innerHTML = "";
 
@@ -141,6 +163,13 @@ const pTags = {
 
         if (conditionMet) {
           node.innerHTML = template.innerHTML;
+          for (const child of node.children) {
+            if (!child.id.startsWith("psroot-")) continue;
+            const orig = template.querySelector("#" + child.id);
+            child.attachShadow({mode: "open"});
+            child.shadowRoot.adoptedStyleSheets = orig.shadowRoot.adoptedStyleSheets;
+            child.shadowRoot.append(...orig.shadowRoot.childNodes.map(c => c.cloneNode(true)));
+          }
 
           await processNodes([...node.children], exports);
         } else {
