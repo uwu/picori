@@ -128,7 +128,6 @@ const pTags = {
       slot.replaceWith(...slot.assignedNodes());
 
     const template = node.cloneNode(true);
-    node.innerHTML = '';
 
     let cleanup = () => {};
     await effect(async () => {
@@ -227,26 +226,28 @@ async function processNodes(nodes, exports) {
         }
       }
 
-      nodes.push(...elem.children);
-
-      if (elem.isPicoriElement) {
-        const props = attributesToObject(elem.attributes);
-
-        for (const [name, val] of Object.entries(props)) {
-          if (name[0] == ':') {
-            elem.props[name.slice(1)] = evalWithObject(val, exports);
-
-            delete elem.expressionProps[name];
-          } else {
-            elem.props[name] = val;
-          }
-        }
-
-        for (const [name, expression] of Object.entries(elem.expressionProps))
-          elem.props[name.slice(1)] = evalWithObject(expression, primitives);
-
-        await elem.setup();
+      // picori elements have <slot>ed children.
+      if (!elem.isPicoriElement) {
+        nodes.push(...elem.children);
+        continue;
       }
+
+      const props = attributesToObject(elem.attributes);
+
+      for (const [name, val] of Object.entries(props)) {
+        if (name[0] == ':') {
+          elem.props[name.slice(1)] = evalWithObject(val, exports);
+
+          delete elem.expressionProps[name];
+        } else {
+          elem.props[name] = val;
+        }
+      }
+
+      for (const [name, expression] of Object.entries(elem.expressionProps))
+        elem.props[name.slice(1)] = evalWithObject(expression, primitives);
+
+      await elem.setup();
     }
   });
 
