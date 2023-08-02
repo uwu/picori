@@ -110,13 +110,13 @@ async function runSetupScript(script, props = {}) {
 const evalWithObject = (str, obj) =>
   (0, eval)(`(({${Object.keys(obj).join()}}) => ${str})`)(obj);
 
-function replacePropertyReactively(node, prop, exports) {
+async function replacePropertyReactively(node, prop, exports) {
   node.style.display = "contents";
   const expr = node.getAttribute(":");
 
   node.addEventListener(
     "DOMNodeRemovedFromDocument",
-    effect(() => {
+    await effect(() => {
       let ret = evalWithObject(expr, exports);
       if (typeof ret == "function") ret = ret();
       node[prop] = ret;
@@ -217,7 +217,7 @@ async function processNodes(nodes, exports) {
         } else if (attr.name[0] == ":" && !elem.isPicoriElement) {
           const boundAttribute = attr.name.slice(1);
 
-          effect(() => {
+          await effect(() => {
             let ret = evalWithObject(attr.value, exports);
             if (typeof ret == "function") ret = ret();
 
