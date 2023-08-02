@@ -226,11 +226,10 @@ async function processNodes(nodes, exports) {
         }
       }
 
-      // picori elements have <slot>ed children.
-      if (!elem.isPicoriElement) {
-        nodes.push(...elem.children);
-        continue;
-      }
+      // don't push slotted children
+      nodes.push(...[...elem.children].filter((e) => !e.assignedSlot));
+
+      if (!elem.isPicoriElement) continue;
 
       const props = attributesToObject(elem.attributes);
 
