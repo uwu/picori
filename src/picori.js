@@ -4,7 +4,7 @@ import {
   effect,
   onDispose,
   root,
-} from "shittier-maverick-signals";
+} from 'shittier-maverick-signals';
 
 const primitives = {
   /*
@@ -32,7 +32,7 @@ const primitives = {
     const val = signal(v);
 
     const setOrCb = (newVal) =>
-      typeof newVal == "function" ? val.set(newVal(val())) : val.set(newVal);
+      typeof newVal == 'function' ? val.set(newVal(val())) : val.set(newVal);
 
     const ret = (...args) => {
       if (args.length == 0) return val();
@@ -40,7 +40,7 @@ const primitives = {
       setOrCb(args[0]);
     };
 
-    Object.defineProperty(ret, "value", {
+    Object.defineProperty(ret, 'value', {
       get: val,
       set: (newVal) => val.set(newVal),
     });
@@ -59,117 +59,124 @@ const primitives = {
   onDispose,
 };
 
-const picoriGlobal = "__PICORI_DATA_DO_NOT_TOUCH_OR_YOU_WILL_BE_FIRED__";
-
 const attributesToObject = (attributes) =>
   Object.fromEntries(
     Array.from(attributes).reduce((p, c) => [...p, [c.name, c.value]], [])
   );
 
-async function runSetupScript(script, props = {}) {
-  // FUCK OFF VITE. THIS ISN'T YOUR FUCKING JOB.
-  let __vite__injectQuery = (e) =>
-    "data:text/javascript;base64," +
-    btoa(
-      atob(e.split("data:text/javascript;base64,")[1]) +
-        "/*" +
-        Math.random() +
-        "*/"
-    );
+export function getFunctionBody(functionString) {
+  const body = functionString.replace(/\((?<args>.*?)\)/s, '').trim();
 
-  window[picoriGlobal].currentProps = props;
+  if (/^=>\s*?{/s.test(body) || body.startsWith('function')) {
+    return body.replace(/^(?:=>|function)\s*?{(.+)}$/s, '$1');
+  } else if (body.startsWith('=>')) {
+    return `return (${body.slice(2)})`;
+  }
 
-  const ret = await import(
-    /* @vite-ignore */
-    "data:text/javascript;base64," +
-      btoa(
-        "let {" +
-          Object.keys(window[picoriGlobal].primitives).join() +
-          "}=window['" +
-          picoriGlobal +
-          "'].primitives;let{" +
-          Object.keys(props).join() +
-          "}=window['" +
-          picoriGlobal +
-          "'].currentProps;" +
-          script +
-          "/*" +
-          Math.random() +
-          Math.random() +
-          Math.random() +
-          "*/"
-      )
-  );
-
-  window[picoriGlobal].currentProps = {};
-
-  return ret;
+  return null;
 }
 
-const evalWithObject = (str, obj) =>
-  (0, eval)(`(({${Object.keys(obj).join()}}) => ${str})`)(obj);
+function withWith(scope, code) {
+  return new Function(`with (arguments[0]) {${code}}`).bind(globalThis)(scope);
+}
 
-async function replacePropertyReactively(node, prop, exports) {
-  node.style.display = "contents";
-  const expr = node.getAttribute(":");
+function getVariablesFromFunction(script, startingScope = {}) {
+  const scope = {};
 
-  await effect(() => {
+  withWith(
+    new Proxy(startingScope, {
+      has: () => true,
+      get: (target, property) =>
+        target[property] ??
+        scope[property] ??
+        globalThis[property]?.bind?.(globalThis) ??
+        globalThis[property],
+      set(_, property, newProperty) {
+        scope[property] = newProperty;
+
+        return true;
+      },
+    }),
+    script
+  );
+
+  return scope;
+}
+
+const runSetupScript = (script, props = {}) => {
+  try {
+    return getVariablesFromFunction(script, { ...props, ...primitives });
+  } catch (e) {
+    console.error(e);
+  }
+};
+
+const evalWithObject = (str, obj) => withWith(obj, 'return ' + str);
+
+function replacePropertyReactively(node, prop, exports) {
+  node.style.display = 'contents';
+  const expr = node.getAttribute(':');
+
+  effect(() => {
     let ret = evalWithObject(expr, exports);
-    if (typeof ret == "function") ret = ret();
+    if (typeof ret == 'function') ret = ret();
     node[prop] = ret;
   });
 }
 
 const pTags = {
-  "P-IF": async (node, exports) => {
-    const conditionalCode = node.getAttribute(":");
+  'P-IF': (node, exports) => {
+    const conditionalCode = node.getAttribute(':');
 
-    for (const slot of node.getElementsByTagName("slot"))
+    for (const slot of node.getElementsByTagName('slot'))
       slot.replaceWith(...slot.assignedNodes());
 
     const template = node.cloneNode(true);
 
     let cleanup = () => {};
-    await effect(async () => {
+    effect(() => {
       let conditionMet = evalWithObject(conditionalCode, exports);
 
       if (conditionMet) {
         node.innerHTML = template.innerHTML;
 
-        cleanup = await processNodes([...node.children], exports);
+        cleanup = processNodes([...node.children], exports);
       } else {
-        node.innerHTML = "";
-        await cleanup();
+        node.innerHTML = '';
+        cleanup();
       }
     });
 
     return true;
   },
-  "P-HTML": (node, exports) =>
-    replacePropertyReactively(node, "innerHTML", exports),
-  "P-TEXT": (node, exports) =>
-    replacePropertyReactively(node, "textContent", exports),
-  "P-SHOW": async (node, exports) => {
-    const expr = node.getAttribute(":");
-    await effect(() => {
+  'P-HTML': (node, exports) =>
+    replacePropertyReactively(node, 'innerHTML', exports),
+  'P-TEXT': (node, exports) =>
+    replacePropertyReactively(node, 'textContent', exports),
+  'P-SHOW': (node, exports) => {
+    const expr = node.getAttribute(':');
+    effect(() => {
       let ret = evalWithObject(expr, exports);
-      if (typeof ret == "function") ret = ret();
+      if (typeof ret == 'function') ret = ret();
 
-      node.style.display = ret ? "contents" : "none";
+      node.style.display = ret ? 'contents' : 'none';
     });
   },
-  "P-FOR": async (node, exports) => {
-    node.style.display = "contents";
+  'P-FOR': (node, exports) => {
+    node.style.display = 'contents';
 
-    const iterableCode = node.getAttribute(":each");
-    const name = node.getAttribute("as");
+    const iterableCode = node.getAttribute(':each');
+    const name = node.getAttribute('as');
 
     const template = node.cloneNode(true);
 
-    let cleanup = () => {};
+    const cleanups = [];
 
-    await effect(async () => {
-      await cleanup();
+    const eff = effect(() => {
+      cleanups.forEach((c, i) => {
+        c();
+        cleanups.splice(i);
+      });
 
       const iterable = evalWithObject(iterableCode, exports);
 
@@ -179,13 +186,15 @@ const pTags = {
         const builtTemplate = template.cloneNode(true);
         newNodes.push(...builtTemplate.childNodes);
 
-        cleanup = await processNodes([...builtTemplate.children], {
-          ...exports,
-          [name]: i,
-        });
+        cleanups.push(
+          processNodes([...builtTemplate.children], {
+            ...exports,
+            [name]: i,
+          })
+        );
       }
 
-      node.innerHTML = "";
+      node.innerHTML = '';
       for (const elem of newNodes) node.appendChild(elem);
     });
 
@@ -193,32 +202,31 @@ const pTags = {
   },
 };
 
-async function processNodes(nodes, exports) {
+function processNodes(nodes, exports) {
   let dispose;
 
-  await root(async (d) => {
-    // This... works... for some reason? It scares me. I do not trust it. To be fair, asynchronous reactive scopes aren't exactly the most trustworthy thing either.
-    dispose = await d;
+  root((d) => {
+    dispose = d;
 
     for (const elem of nodes) {
       if (pTags?.[elem.tagName]) {
-        if (await pTags[elem.tagName](elem, exports)) continue;
+        if (pTags[elem.tagName](elem, exports)) continue;
       } else {
         for (const attr of elem.attributes) {
-          if (attr.name[0] == "@") {
+          if (attr.name[0] == '@') {
             elem.addEventListener(attr.name.slice(1), (event) => {
               let resp = evalWithObject(attr.value, exports);
 
-              if (typeof resp == "function") resp(event);
+              if (typeof resp == 'function') resp(event);
             });
-          } else if (attr.name[0] == ":" && !elem.isPicoriElement) {
+          } else if (attr.name[0] == ':' && !elem.isPicoriElement) {
             const boundAttribute = attr.name.slice(1);
 
-            await effect(() => {
+            effect(() => {
               let ret = evalWithObject(attr.value, exports);
-              if (typeof ret == "function") ret = ret();
+              if (typeof ret == 'function') ret = ret();
 
-              boundAttribute == "value"
+              boundAttribute == 'value'
                 ? (elem.value = ret)
                 : elem.setAttribute(boundAttribute, ret);
             });
@@ -231,12 +239,13 @@ async function processNodes(nodes, exports) {
 
       if (!elem.isPicoriElement) continue;
 
-      const props = attributesToObject(elem.attributes);
+      for (const [name, val] of Object.entries(
+        attributesToObject(elem.attributes)
+      )) {
+        if (name[0] == '@') continue;
 
-      for (const [name, val] of Object.entries(props)) {
-        if (name[0] == ":") {
-          elem.props[name.slice(1)] = evalWithObject(val, exports);
-
+        if (name[0] == ':') {
+          elem.props[name.slice(1)] = withWith('return ' + exports, val);
           delete elem.expressionProps[name];
         } else {
           elem.props[name] = val;
@@ -244,24 +253,22 @@ async function processNodes(nodes, exports) {
       }
 
       for (const [name, expression] of Object.entries(elem.expressionProps))
-        elem.props[name.slice(1)] = evalWithObject(expression, primitives);
+        elem.props[name.slice(1)] = withWith(primitives, expression);
 
-      await elem.setup();
+      elem.setup();
     }
   });
 
   return dispose;
 }
 
-window[picoriGlobal] = { primitives };
-
-const components = document.querySelectorAll("head > template[name]");
+const components = document.querySelectorAll('head > template[name]');
 
 const picoElements = [];
 for (const comp of components) {
-  const name = comp.getAttribute("name");
+  const name = comp.getAttribute('name');
   const defaultProps = attributesToObject(comp.attributes);
-  delete defaultProps["name"];
+  delete defaultProps['name'];
 
   const picoriElement = class extends HTMLElement {
     constructor() {
@@ -270,7 +277,7 @@ for (const comp of components) {
 
       this.template = comp.content.cloneNode(true);
       for (const elem of this.template.children) {
-        if (elem.tagName != "SCRIPT") continue;
+        if (elem.tagName != 'SCRIPT') continue;
 
         this.setupScript = elem.innerHTML;
 
@@ -278,33 +285,32 @@ for (const comp of components) {
         break;
       }
 
-      if (!this.setupScript) this.setupScript = "";
+      if (!this.setupScript) this.setupScript = '';
 
       this.props = {};
       this.expressionProps = {};
 
       for (const [name, prop] of Object.entries(defaultProps)) {
-        name[0] == ":"
+        name[0] == ':'
           ? (this.expressionProps[name] = prop)
           : (this.props[name] = prop);
       }
 
       if (this.shadowRoot) return;
-      this.attachShadow({ mode: "open" }).appendChild(this.template);
+
+      this.attachShadow({ mode: 'open' }).appendChild(this.template);
 
       if (window.__PICORI_SHEETS__)
         this.shadowRoot.adoptedStyleSheets = window.__PICORI_SHEETS__;
     }
 
-    async setup() {
-      await root(async (dispose) => {
-        // I added this because the previous one seems to need this, but it still scares me.
-        this.dispose = await dispose;
+    setup() {
+      root((dispose) => {
+        this.dispose = dispose;
 
-        const exports = await runSetupScript(this.setupScript, this.props);
-
+        const exports = runSetupScript(this.setupScript, this.props);
         const elems = [...this.template.children, ...this.shadowRoot.children];
-        await processNodes(elems, exports);
+        processNodes(elems, exports);
       });
     }
 
@@ -317,7 +323,7 @@ for (const comp of components) {
   picoElements.push(name);
 }
 
-await processNodes([
+processNodes([
   ...document.querySelectorAll(
     picoElements
       .map((t) => `${t}:not(${picoElements.map((p) => `${p} ${t}`).join()})`)
