@@ -64,54 +64,25 @@ const attributesToObject = (attributes) =>
     Array.from(attributes).reduce((p, c) => [...p, [c.name, c.value]], [])
   );
 
-export function getFunctionBody(functionString) {
-  const body = functionString.replace(/\((?<args>.*?)\)/s, '').trim();
-
-  if (/^=>\s*?{/s.test(body) || body.startsWith('function')) {
-    return body.replace(/^(?:=>|function)\s*?{(.+)}$/s, '$1');
-  } else if (body.startsWith('=>')) {
-    return `return (${body.slice(2)})`;
-  }
-
-  return null;
-}
-
 function withWith(scope, code) {
-  return new Function(`with (arguments[0]) {${code}}`).bind(globalThis)(scope);
-}
-
-function getVariablesFromFunction(script, startingScope = {}) {
-  const scope = {};
-
-  withWith(
-    new Proxy(startingScope, {
-      has: () => true,
-      get: (target, property) =>
-        target[property] ??
-        scope[property] ??
-        globalThis[property]?.bind?.(globalThis) ??
-        globalThis[property],
-      set(_, property, newProperty) {
-        scope[property] = newProperty;
-
-        return true;
-      },
-    }),
-    script
-  );
-
-  return scope;
+  return new Function(`with (arguments[0]) {${code}}`)(scope);
 }
 
 const runSetupScript = (script, props = {}) => {
+  let exports = {};
+
+  const expose = (obj) => (exports = { ...exports, ...obj });
+
   try {
-    return getVariablesFromFunction(script, { ...props, ...primitives });
+    withWith({ ...props, ...primitives, expose }, script);
   } catch (e) {
     console.error(e);
   }
+
+  return exports;
 };
 
-const evalWithObject = (str, obj) => withWith(obj, 'return ' + str);
+const evalWithObject = (str, obj = {}) => withWith(obj, 'return ' + str);
 
 function replacePropertyReactively(node, prop, exports) {
   node.style.display = 'contents';
@@ -245,7 +216,7 @@ function processNodes(nodes, exports) {
         if (name[0] == '@') continue;
 
         if (name[0] == ':') {
-          elem.props[name.slice(1)] = withWith('return ' + exports, val);
+          elem.props[name.slice(1)] = evalWithObject(val, exports);
           delete elem.expressionProps[name];
         } else {
           elem.props[name] = val;
@@ -253,7 +224,7 @@ function processNodes(nodes, exports) {
       }
 
       for (const [name, expression] of Object.entries(elem.expressionProps))
-        elem.props[name.slice(1)] = withWith(primitives, expression);
+        elem.props[name.slice(1)] = evalWithObject(expression, primitives);
 
       elem.setup();
     }
