@@ -10,7 +10,8 @@ picori is a small frontend framework that allows you to define reactive componen
       <script>
         console.log(prop) // The prop is accessible from the script!
 
-        export const boundHTML = prop + " world!"
+        // Variables declared with `var` are made accessible to templates.
+        var boundHTML = prop + " world!"
       </script>
 
       <slot></slot>

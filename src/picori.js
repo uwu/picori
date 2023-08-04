@@ -4,7 +4,7 @@ import {
   effect,
   onDispose,
   root,
-} from 'shittier-maverick-signals';
+} from '@maverick-js/signals';
 
 const primitives = {
   /*

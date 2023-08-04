@@ -5,19 +5,12 @@ settings:
   excludeLinksFromLockfile: false
 
 dependencies:
-  mutation-events:
-    specifier: ^1.0.4
-    version: 1.0.4
-  shittier-maverick-signals:
+  '@maverick-js/signals':
     specifier: ^5.11.2
     version: 5.11.2
 
 packages:
 
-  /mutation-events@1.0.4:
-    resolution: {integrity: sha512-ZTQ8hHn5CI5x5RO2IlJ6KKzGcjW3MwgKgNrhnHYmCL1b1eQ+CXOcMym8jm/3aatpEWT0oEAiR6b04hqI3wSCqw==}
-    dev: false
-
-  /shittier-maverick-signals@5.11.2:
-    resolution: {integrity: sha512-YEWO6SaAF1pzX8N2iAZmwg2wVD4tE6TEu2nLW1LpUzqT3Hszf+P+k3rqILB0BfMJPb1iCojryB5ojnccdpanBQ==}
+  /@maverick-js/signals@5.11.2:
+    resolution: {integrity: sha512-jKAyNE2O7H+xrigPoqdV0Iq2AeQ6cysfBf/b2jasJ4FfCUKjGyazgtp+pIspTW6skFvpPrvq40Qft+7HuR+Tlg==}
     dev: false

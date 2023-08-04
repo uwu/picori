@@ -6,6 +6,6 @@
   "main": "./src/picori.js",
   "type": "module",
   "dependencies": {
-    "shittier-maverick-signals": "^5.11.2"
+    "@maverick-js/signals": "^5.11.2"
   }
 }
